@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sorteador Lotofácil & Mega-Sena</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#172033;--green:#15803d;--blue:#2563eb;--gold:#d97706;--muted:#64748b;--line:#e2e8f0}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+main{max-width:720px;margin:auto;padding:18px 14px 40px}.hero{background:var(--ink);color:#fff;border-radius:20px;padding:22px 18px;margin-bottom:14px}.hero h1{margin:0 0 6px;font-size:25px}.hero p{margin:0;color:#dbe4ef}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #00000008}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}.full{grid-column:1/-1}
+.btn{border:0;border-radius:14px;padding:15px 10px;color:#fff;font-size:16px;font-weight:700;min-height:52px}.lf{background:var(--green)}.ms{background:var(--blue)}.both{background:var(--gold)}
+label{font-size:13px;color:var(--muted);font-weight:600;display:block;margin-bottom:6px}select{width:100%;padding:13px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:16px}
+.mode{background:#f5f3ff;border:1px solid #ddd6fe;border-radius:14px;padding:12px}.mode b{display:block;margin-bottom:5px}.mode p{font-size:12px;color:var(--muted);margin:5px 0 0;line-height:1.35}
+.section-title{font-size:18px;font-weight:800;margin:2px 0 12px}.game{border:1px solid var(--line);border-radius:14px;padding:12px;margin:9px 0}.gamehead{display:flex;justify-content:space-between;font-weight:800;margin-bottom:8px}.balls{display:flex;flex-wrap:wrap;gap:7px}.ball{width:37px;height:37px;border-radius:50%;display:grid;place-items:center;background:#eef2f7;font-weight:800;font-size:14px}.green{background:#dcfce7;color:#166534}.blue{background:#dbeafe;color:#1e40af}
+.actions{display:flex;gap:8px}.small{flex:1;background:#eef2f7;color:var(--ink);border:0;border-radius:11px;padding:10px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:9px 5px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+.note{font-size:13px;color:var(--muted);line-height:1.45}.empty{color:var(--muted);text-align:center;padding:18px}.badge{display:inline-block;font-size:11px;font-weight:800;padding:4px 7px;border-radius:99px;background:#ede9fe;color:#5b21b6;margin-left:6px}
+.topline{display:flex;align-items:center;justify-content:space-between}
+</style>
+</head>
+<body>
+<main>
+<div class="hero"><h1>🎲 Sorteador</h1><p>Lotofácil & Mega-Sena — aleatório, sem F9 e sem macros.</p></div>
+
+<div class="card">
+<div class="controls">
+<div><label>Quantidade de jogos</label><select id="qty"><option>1</option><option>2</option><option>3</option><option selected>5</option><option>10</option><option>20</option></select></div>
+<div><label>Modo de sorteio</label><select id="mode" onchange="renderModeNote()"><option value="random">🎲 Aleatório puro</option><option value="stats">📊 Estatístico do histórico</option></select></div>
+<div id="modeNote" class="mode full"><b>🎲 Aleatório puro</b><p>Cada número tem a mesma chance. Este é o modo sem qualquer ponderação.</p></div>
+<div class="full actions"><button class="btn lf" onclick="draw('lf')">🎯 Lotofácil</button><button class="btn ms" onclick="draw('ms')">🎱 Mega-Sena</button></div>
+<button class="btn both full" onclick="draw('both')">🔄 Sortear os dois</button>
+<button class="btn full" style="background:#7c3aed" onclick="drawStrategy()">🎯 Estratégia R$ 34 — 8 Lotofácil + 1 Mega</button>
+</div>
+</div>
+
+<div class="card" style="background:#faf5ff;border-color:#ddd6fe">
+<div class="section-title">🎯 Estratégia R$ 34</div>
+<p class="note" style="margin:0">Gera <strong>8 jogos de Lotofácil</strong> (6 aleatórios + 2 estatísticos) e <strong>1 Mega-Sena</strong>. A seleção da Lotofácil busca diversidade entre os jogos, equilíbrio de pares/ímpares e distribuição pelas faixas 1–5, 6–10, 11–15, 16–20 e 21–25. É uma regra de organização das apostas, não uma vantagem matemática sobre o sorteio.</p>
+</div>
+<div id="results"></div>
+
+<div class="card">
+<div class="topline"><div class="section-title">📚 Histórico</div><button class="small" style="flex:0 0 auto" onclick="clearHistory()">Limpar</button></div>
+<div class="actions"><button class="small" onclick="copyHistory()">Copiar histórico</button><button class="small" onclick="exportHistory()">Exportar CSV</button></div>
+<div id="history" style="margin-top:10px"></div>
+</div>
+
+<div class="card">
+<div class="section-title">📊 Frequência do seu histórico</div>
+<div id="stats"></div>
+<p class="note">A frequência é calculada somente a partir dos jogos que você gerou. Ela é descritiva, não uma previsão. Um número que apareceu mais vezes não fica mais provável no próximo concurso.</p>
+</div>
+
+<div class="card">
+<div class="section-title">⚖️ Probabilidade matemática</div>
+<table>
+<tr><th>Modalidade</th><th>Número específico aparecer</th><th>Acertar o jogo simples</th></tr>
+<tr><td>Lotofácil</td><td>15/25 = 60%</td><td>1 em 3.268.760</td></tr>
+<tr><td>Mega-Sena</td><td>6/60 = 10%</td><td>1 em 50.063.860</td></tr>
+</table>
+<p class="note">A primeira coluna é a chance de um número isolado aparecer; a última é a chance da combinação inteira sair.</p>
+</div>
+</main>
+
+<script>
+const KEY="sorteador_lf_ms_history_v2";
+let history=JSON.parse(localStorage.getItem(KEY)||"[]");
+
+function sampleUniform(n,max){
+ let a=Array.from({length:max},(_,i)=>i+1);
+ for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+ return a.slice(0,n).sort((x,y)=>x-y);
+}
+function getCounts(type,max){
+ const counts=Array(max+1).fill(0);
+ history.filter(h=>h.type===type).forEach(h=>h.nums.forEach(n=>counts[n]++));
+ return counts;
+}
+function weightedSample(n,max,type){
+ const counts=getCounts(type,max);
+ let pool=Array.from({length:max},(_,i)=>i+1), out=[];
+ while(out.length<n){
+   const weights=pool.map(x=>1+counts[x]);
+   const total=weights.reduce((a,b)=>a+b,0);
+   let r=Math.random()*total, pick=pool[pool.length-1];
+   for(let i=0;i<pool.length;i++){r-=weights[i];if(r<=0){pick=pool[i];break}}
+   out.push(pick); pool=pool.filter(x=>x!==pick);
+ }
+ return out.sort((a,b)=>a-b);
+}
+function sample(n,max,type,mode){return mode==="stats"?weightedSample(n,max,type):sampleUniform(n,max)}
+function fmt(a){return a.map(n=>String(n).padStart(2,"0")).join(" - ")}
+
+function strategyCandidates(type, mode, count){
+  const n=type==="lf"?15:6, max=type==="lf"?25:60;
+  const seen=new Set(); const arr=[]; const limit=count*20;
+  let tries=0;
+  while(arr.length<limit && tries<limit*20){
+    tries++; const nums=sample(n,max,type,mode), key=nums.join(",");
+    if(!seen.has(key)){seen.add(key);arr.push(nums)}
+  }
+  return arr;
+}
+function lfFeatures(nums){
+  const odd=nums.filter(n=>n%2).length;
+  const bands=[0,0,0,0,0];
+  nums.forEach(n=>bands[Math.floor((n-1)/5)]++);
+  const sum=nums.reduce((a,b)=>a+b,0);
+  let consecutive=0;
+  for(let i=1;i<nums.length;i++) if(nums[i]===nums[i-1]+1) consecutive++;
+  return {odd,bands,sum,consecutive};
+}
+function pairOverlap(a,b){
+  let i=0,j=0,c=0;
+  while(i<a.length&&j<b.length){if(a[i]===b[j]){c++;i++;j++}else if(a[i]<b[j])i++;else j++;}
+  return c;
+}
+function scoreLFSet(games){
+  let score=0;
+  for(const g of games){
+    const f=lfFeatures(g);
+    score += Math.abs(f.odd-7.5)*2;
+    score += Math.max(0, Math.abs(f.sum-195)-35)*0.15;
+    for(const b of f.bands) score += Math.max(0, Math.abs(b-3)-1)*1.5;
+  }
+  for(let i=0;i<games.length;i++) for(let j=i+1;j<games.length;j++){
+    const o=pairOverlap(games[i],games[j]);
+    score += Math.max(0,o-10)*12;
+    score += Math.max(0,8-o)*0.35;
+  }
+  return score;
+}
+function buildStrategyLF(){
+  const randoms=strategyCandidates("lf","random",6);
+  const stats=strategyCandidates("lf","stats",2);
+  // Randomized search: choose 6 random + 2 statistical, then keep the set with the lowest diversity/shape penalty.
+  let best=null,bestScore=Infinity;
+  for(let t=0;t<700;t++){
+    const set=[];
+    for(let i=0;i<6;i++) set.push(randoms[Math.floor(Math.random()*randoms.length)]);
+    set.push(stats[Math.floor(Math.random()*stats.length)]);
+    set.push(stats[Math.floor(Math.random()*stats.length)]);
+    if(set[6].join(",")===set[7].join(",")) continue;
+    const keys=new Set(set.map(x=>x.join(",")));
+    if(keys.size<8) continue;
+    const sc=scoreLFSet(set);
+    if(sc<bestScore){bestScore=sc;best=set}
+  }
+  return best || [...randoms.slice(0,6),...stats.slice(0,2)];
+}
+function uniqueMega(){
+  const used=new Set(history.filter(h=>h.type==="Mega-Sena").map(h=>h.nums.join(",")));
+  for(let i=0;i<100;i++){
+    const g=sample(6,60,"ms","random"), key=g.join(",");
+    if(!used.has(key)) return g;
+  }
+  return sample(6,60,"ms","random");
+}
+function drawStrategy(){
+  const lf=buildStrategyLF(); const mega=uniqueMega(); let out=`<div class="card"><div class="section-title">🎯 Estratégia R$ 34</div>`;
+  lf.forEach((nums,i)=>{
+    const mode=i<6?"random":"stats";
+    history.unshift({date:new Date().toLocaleString("pt-BR"),type:"Lotofácil",nums,mode,strategy:true});
+    out+=`<div class="game"><div class="gamehead"><span>Lotofácil ${i+1}</span><span>${mode==="stats"?"📊 Estatístico":"🎲 Aleatório"}</span></div><div class="balls">${nums.map(x=>`<span class="ball green">${String(x).padStart(2,"0")}</span>`).join("")}</div></div>`;
+  });
+  history.unshift({date:new Date().toLocaleString("pt-BR"),type:"Mega-Sena",nums:mega,mode:"random",strategy:true});
+  out+=`<div class="game"><div class="gamehead"><span>Mega-Sena</span><span>🎲 Aleatório</span></div><div class="balls">${mega.map(x=>`<span class="ball blue">${String(x).padStart(2,"0")}</span>`).join("")}</div></div>`;
+  out+=`<p class="note"><strong>Total: R$ 34.</strong> A Lotofácil foi selecionada buscando diversidade entre os 8 jogos. Isso não altera a probabilidade matemática de cada combinação.</p></div>`;
+  history=history.slice(0,500); save(); document.getElementById("results").innerHTML=out; renderHistory(); renderStats(); window.scrollTo({top:0,behavior:"smooth"});
+}
+function renderModeNote(){
+ const m=document.getElementById("mode").value;
+ document.getElementById("modeNote").innerHTML=m==="random"
+ ? "<b>🎲 Aleatório puro</b><p>Cada número tem a mesma chance. Este é o modo sem qualquer ponderação.</p>"
+ : "<b>📊 Estatístico do seu histórico</b><p>Usa a frequência dos seus próprios jogos como peso de seleção. Isso muda o método de geração, mas <strong>não aumenta a probabilidade matemática</strong> de ganhar.</p>";
+}
+function draw(type){
+ const q=+document.getElementById("qty").value, mode=document.getElementById("mode").value;
+ const types=type==="both"?["lf","ms"]:[type]; let out="";
+ types.forEach(t=>{
+  const name=t==="lf"?"Lotofácil":"Mega-Sena", n=t==="lf"?15:6, max=t==="lf"?25:60;
+  out+=`<div class="card"><div class="section-title">${t==="lf"?"🎯":"🎱"} ${name}${mode==="stats"?'<span class="badge">estatístico</span>':""}</div>`;
+  for(let i=1;i<=q;i++){
+   const nums=sample(n,max,t,mode);
+   history.unshift({date:new Date().toLocaleString("pt-BR"),type:name,nums,mode});
+   out+=`<div class="game"><div class="gamehead"><span>Jogo ${i}</span><span>${mode==="stats"?"📊":"🎲"}</span></div><div class="balls">${nums.map(x=>`<span class="ball ${t==="lf"?"green":"blue"}">${String(x).padStart(2,"0")}</span>`).join("")}</div></div>`;
+  }
+  out+="</div>";
+ });
+ history=history.slice(0,500);save();document.getElementById("results").innerHTML=out;renderHistory();renderStats();window.scrollTo({top:0,behavior:"smooth"});
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(history))}
+function renderHistory(){
+ const el=document.getElementById("history");
+ if(!history.length){el.innerHTML='<div class="empty">Nenhum jogo registrado ainda.</div>';return}
+ el.innerHTML=history.slice(0,30).map(h=>`<div class="game"><div class="gamehead"><span>${h.type} ${h.mode==="stats"?"📊":"🎲"}</span><span>${h.date}</span></div><div>${fmt(h.nums)}</div></div>`).join("");
+}
+function renderStats(){
+ const counts={};
+ history.forEach(h=>h.nums.forEach(n=>counts[h.type+"|"+n]=(counts[h.type+"|"+n]||0)+1));
+ let out="";
+ [["Lotofácil",25],["Mega-Sena",60]].forEach(([name,max])=>{
+  out+=`<b>${name}</b><table><tr><th>Número</th><th>Ocorrências</th><th>% dos seus jogos</th></tr>`;
+  const relevant=history.filter(h=>h.type===name).length;
+  for(let i=1;i<=max;i++){let c=counts[name+"|"+i]||0;out+=`<tr><td>${String(i).padStart(2,"0")}</td><td>${c}</td><td>${relevant?((c/relevant)*100).toFixed(1):"0.0"}%</td></tr>`}
+  out+="</table><br>";
+ });
+ document.getElementById("stats").innerHTML=out;
+}
+function clearHistory(){if(confirm("Apagar todo o histórico?")){history=[];save();renderHistory();renderStats()}}
+function copyHistory(){
+ if(!history.length)return alert("Histórico vazio.");
+ const text=history.map(h=>`${h.date} | ${h.type} | ${h.mode==="stats"?"Estatístico":"Aleatório"} | ${fmt(h.nums)}`).join("\n");
+ if(navigator.clipboard)navigator.clipboard.writeText(text).then(()=>alert("Histórico copiado."));else alert(text);
+}
+function exportHistory(){
+ if(!history.length)return alert("Histórico vazio.");
+ let csv="Data;Modalidade;Modo;Números\n"+history.map(h=>`"${h.date}";"${h.type}";"${h.mode==="stats"?"Estatístico":"Aleatório"}";"${fmt(h.nums)}"`).join("\n");
+ const a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8"}));a.download="historico_lotofacil_megasena.csv";a.click();URL.revokeObjectURL(a.href);
+}
+renderModeNote();renderHistory();renderStats();
+</script>
+</body>
+</html>
